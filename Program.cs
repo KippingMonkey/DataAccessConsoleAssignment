@@ -8,6 +8,20 @@ using System.Linq;
 
 namespace Assignment1
 {
+    public class Movies
+    {
+        public int ID { get; set; }
+        [MaxLength(255)]
+        public string Title { get; set; }
+        public DateTime ReleaseDate { get; set; }
+    }
+    public class Screenings
+    {
+        public int ID { get; set; }
+        public DateTime DateTime { get; set; }
+        public int MovieID { get; set; }
+        public Int16 Seats { get; set; }
+    }
     public class Program
     {
         public static void Main()

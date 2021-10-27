@@ -11,16 +11,33 @@ namespace Assignment1
     public class Movies
     {
         public int ID { get; set; }
-        [MaxLength(255)]
+        [MaxLength(255), Required]
         public string Title { get; set; }
+        [DataType(DataType.Date)]
+        [Column(TypeName ="Date")]
         public DateTime ReleaseDate { get; set; }
     }
     public class Screenings
     {
         public int ID { get; set; }
         public DateTime DateTime { get; set; }
+
         public int MovieID { get; set; }
+        [ForeignKey("MovieID")]
+        public Movies Movies { get; set; }
+
         public Int16 Seats { get; set; }
+    }
+
+    public class MoviesContext : DbContext
+    {
+        public DbSet<Movies> Movies { get; set; }
+        public DbSet <Screenings> Screenings { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        {
+            options.UseSqlServer(@"Data Source=LAPTOP-9gj2bhv1;Initial Catalog=DataAccessConsoleAssignment;Integrated Security=SSPI");
+        }
     }
     public class Program
     {

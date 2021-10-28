@@ -4,10 +4,21 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 
 namespace Assignment1
 {
+    public class MoviesContext : DbContext
+    {
+        public DbSet<Movies> Movies { get; set; }
+        public DbSet<Screenings> Screenings { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        {
+            options.UseSqlServer(@"Data Source=LAPTOP-9gj2bhv1;Initial Catalog=DataAccessConsoleAssignment;Integrated Security=SSPI");
+        }
+    }
     public class Movies
     {
         public int ID { get; set; }
@@ -29,26 +40,32 @@ namespace Assignment1
         public Int16 Seats { get; set; }
     }
 
-    public class MoviesContext : DbContext
-    {
-        public DbSet<Movies> Movies { get; set; }
-        public DbSet <Screenings> Screenings { get; set; }
-
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
-        {
-            options.UseSqlServer(@"Data Source=LAPTOP-9gj2bhv1;Initial Catalog=DataAccessConsoleAssignment;Integrated Security=SSPI");
-        }
-    }
+    
     public class Program
     {
+        private static MoviesContext MoviesContext;
         public static void Main()
         {
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 
-            bool running = true;
-            while (running)
+            // Method not used as we are only turning in the cs-file. Still wanted to include it.
+           //MoveFileSampleMoviesToTemp();
+
+            using (MoviesContext = new MoviesContext())
             {
-                int selected = Utils.ShowMenu("What do you want to do?", new[] {
+                //if (MoviesContext.Database.EnsureCreated()) //Checks if database exists. If not it creates it. NOTE. Does not use migrations
+                //{
+                //    Console.WriteLine("Database exists");
+                //}
+                //else if (!MoviesContext.Database.EnsureCreated())
+                //{
+                //    Console.WriteLine("No such database exists. Please hold while I created it.");
+                //};
+
+                bool running = true;
+                while (running)
+                {
+                    int selected = Utils.ShowMenu("What do you want to do?", new[] {
                     "List Movies",
                     "Add Movie",
                     "Delete Movie",
@@ -58,23 +75,64 @@ namespace Assignment1
                     "Delete Screening",
                     "Exit"
                 });
-                Console.Clear();
+                    Console.Clear();
 
-                if (selected == 0) ListMovies();
-                else if (selected == 1) AddMovie();
-                else if (selected == 2) DeleteMovie();
-                else if (selected == 3) LoadMoviesFromCSVFile();
-                else if (selected == 4) ListScreenings();
-                else if (selected == 5) AddScreening();
-                else if (selected == 6) DeleteScreening();
-                else running = false;
+                    if (selected == 0) ListMovies();
+                    else if (selected == 1) AddMovie();
+                    else if (selected == 2) DeleteMovie();
+                    else if (selected == 3) LoadMoviesFromCSVFile();
+                    else if (selected == 4) ListScreenings();
+                    else if (selected == 5) AddScreening();
+                    else if (selected == 6) DeleteScreening();
+                    else running = false;
 
-                Console.WriteLine();
+                    Console.WriteLine();
+                } 
+            }
+        }
+        /// <summary>
+        /// Method for moving "SampleMovies" to local harddrive when sending complete solution
+        /// </summary>
+        private static void MoveFileSampleMoviesToTemp()
+        {
+            string projectPath = @"C:\Users\nelsc\source\repos\DataAccessConsoleAssignment\SampleMovies.csv";
+            string tempPath = @"C:\Windows\Temp\SampleMovies.csv";
+            try
+            {
+                if (!File.Exists(projectPath)) //checks if the file to move is in the project
+                {
+                    Console.WriteLine("I am sorry, there has been an error. The file SampleMovies does not exist in your project.");
+                }
+                else
+                { 
+                    // Ensure that the target does not exist. If it does, delete it.
+                    if (File.Exists(tempPath))
+                    {
+                        File.Delete(tempPath);
+                    }
+                    // Move the file.
+                    File.Move(projectPath, tempPath);
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("The process failed: {0}", e.ToString());
             }
         }
 
         public static void ListMovies()
         {
+            if (MoviesContext.Movies.Count() != 0)
+            {
+                foreach (var movie in MoviesContext.Movies)
+                {
+                    Console.WriteLine($"- {movie.Title} ({movie.ReleaseDate:yyyy})");
+                } 
+            }
+            else
+            {
+                Console.WriteLine("I am sorry. There are no movies to list at this time.");
+            }
         }
 
         public static void AddMovie()
@@ -87,10 +145,43 @@ namespace Assignment1
 
         public static void LoadMoviesFromCSVFile()
         {
+            //Not possible due to foreignkey. Need to remove constraints, then truncate, then recreate constraints (i.e. FK)
+            //MoviesContext.Database.ExecuteSqlRaw("TRUNCATE TABLE Screenings");
+            //MoviesContext.Database.ExecuteSqlRaw("TRUNCATE TABLE Movies"); 
+
+
+            string[] linesCSV = File.ReadAllLines(@"C:\Users\nelsc\source\repos\DataAccessConsoleAssignment\Movies.csv").ToArray();
+            foreach (string line in linesCSV)
+            {
+                string[] values = line.Split(',').Select(v => v.Trim()).ToArray();
+
+                string title = values[0];
+                DateTime releaseDate = DateTime.Parse(values[1]);
+
+                Movies movie = new Movies
+                {
+                    Title = title,
+                    ReleaseDate = releaseDate
+                };
+
+                MoviesContext.Add(movie);
+                MoviesContext.SaveChanges();
+            }
         }
 
         public static void ListScreenings()
         {
+            if (MoviesContext.Screenings.Count() != 0)
+            {
+                foreach (var screening in MoviesContext.Screenings)
+                {
+                    Console.WriteLine($"- {screening.DateTime:g}: {screening.MovieID} ({screening.Seats})");
+                }
+            }
+            else
+            {
+                Console.WriteLine("I am sorry. There are no screenings to list at this time.");
+            }
         }
 
         public static void AddScreening()

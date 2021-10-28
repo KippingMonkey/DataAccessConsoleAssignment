@@ -6,6 +6,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using static Assignment1.Utils;
 
 namespace Assignment1
 {
@@ -124,7 +125,7 @@ namespace Assignment1
         {
             if (MoviesContext.Movies.Count() != 0)
             {
-                foreach (var movie in MoviesContext.Movies)
+                foreach (var movie in MoviesContext.Movies.AsNoTracking())
                 {
                     Console.WriteLine($"- {movie.Title} ({movie.ReleaseDate:yyyy})");
                 } 
@@ -137,10 +138,37 @@ namespace Assignment1
 
         public static void AddMovie()
         {
+            string title = ReadString("Please enter the name of the movie: ");
+            DateTime releaseDate = ReadDate("Thank you. Now please enter date of release: ");
+
+            Movies movie = new Movies
+            {
+                Title = title,
+                ReleaseDate = releaseDate
+            };
+
+            MoviesContext.Add(movie);
+            MoviesContext.SaveChanges();
+
         }
 
         public static void DeleteMovie()
         {
+            var movies = new string[MoviesContext.Movies.Count()];
+            int counter = 0;
+
+            foreach (var movie in MoviesContext.Movies)
+            {
+                movies[counter] = $"{movie.Title} ({movie.ReleaseDate:yyyy})";
+                counter++;
+            }
+            // list all the movies with showmenu
+            int selected = ShowMenu("Which movie would you like to delete?", movies);
+            //find movie selected in database
+            var movieToDelete = MoviesContext.Movies.Where(m => m.ID == selected + 1).First();
+            //delete movie from database
+            MoviesContext.Movies.Remove(movieToDelete);
+            MoviesContext.SaveChanges();
         }
 
         public static void LoadMoviesFromCSVFile()
@@ -150,7 +178,7 @@ namespace Assignment1
             //MoviesContext.Database.ExecuteSqlRaw("TRUNCATE TABLE Movies"); 
 
 
-            string[] linesCSV = File.ReadAllLines(@"C:\Users\nelsc\source\repos\DataAccessConsoleAssignment\Movies.csv").ToArray();
+            string[] linesCSV = File.ReadAllLines(@"C:\Users\nelsc\source\repos\DataAccessConsoleAssignment\SampleMovies.csv").ToArray();
             foreach (string line in linesCSV)
             {
                 string[] values = line.Split(',').Select(v => v.Trim()).ToArray();

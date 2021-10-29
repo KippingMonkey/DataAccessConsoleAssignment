@@ -120,18 +120,44 @@ namespace Assignment1
                 Console.WriteLine("The process failed: {0}", e.ToString());
             }
         }
-
-        public static string[] MovieListToArry()
+        /// <summary>
+        /// Makde a 2D array with movie title and movie release date
+        /// </summary>
+        /// <returns></returns>
+        public static string[,] MovieListTo2DArray()
         {
-            var movies = new string[MoviesContext.Movies.Count()];
+            var movies = new string[2,MoviesContext.Movies.Count()];
             int counter = 0;
 
             foreach (var movie in MoviesContext.Movies.AsNoTracking())
             {
-                movies[counter] = $"{movie.Title} ({movie.ReleaseDate:yyyy})";
+                movies[0,counter] = $"{movie.Title}";
+                movies[1, counter] = $" ({ movie.ReleaseDate:yyyy})";
                 counter++;
             }
             return movies;
+        }
+        /// <summary>
+        /// Finds the selected movie in the database by looking for a matching title
+        /// </summary>
+        /// <param name="prompt"></param>
+        /// <param name="movies2D"></param>
+        /// <returns></returns>
+        public static Movies FindSelectedMovieInDb(string prompt, string[,] movies2D)
+        {
+            movies2D = MovieListTo2DArray();
+
+            var movies = new string[movies2D.Length/2];
+            for (int i = 0; i < movies2D.Length/2; i++)
+            {
+                movies[i] = movies2D[0, i] + movies2D[1, i];
+            }
+            // list all the movies with showmenu
+            int selected = ShowMenu(prompt, movies);
+            //find movie selected in database
+            var selectedMovie = MoviesContext.Movies.Where(m => m.Title == movies2D[0, selected]).First();
+
+            return selectedMovie;
         }
 
         public static void ListMovies()
@@ -167,13 +193,10 @@ namespace Assignment1
 
         public static void DeleteMovie()
         {
-            string[] movies = MovieListToArry();
-            // list all the movies with showmenu
-            int selected = ShowMenu("Which movie would you like to delete?", movies);
-            //find movie selected in database
-            var movieToDelete = MoviesContext.Movies.Where(m => m.ID == selected + 1).First();
+            var movies2D = MovieListTo2DArray();
+            var selectedMovie = FindSelectedMovieInDb("Which movie would you like to delete?", movies2D);
             //delete movie from database
-            MoviesContext.Movies.Remove(movieToDelete);
+            MoviesContext.Movies.Remove(selectedMovie);
             MoviesContext.SaveChanges();
         }
 
@@ -207,12 +230,12 @@ namespace Assignment1
         {
             if (MoviesContext.Screenings.Count() != 0)
             {
-                var join = MoviesContext.Movies
+                var join = MoviesContext.Movies //table with many (movies can have many screening)
                     .Join(
-                    MoviesContext.Screenings,
-                    movie => movie.ID,
-                    screening => screening.MovieClass.ID,
-                    (movie, screening) => new
+                    MoviesContext.Screenings, //tabel with one (each screeing only has one movie)
+                    movie => movie.ID, //set movie to movie tabel ID
+                    screening => screening.MovieClass.ID, //use the movieclass property in screening to movie id (foreign key)
+                    (movie, screening) => new //make a new, joined objekt, using properties from both classes
                     {
                         ScreeningDate = screening.DateTime,
                         MovieTitle = movie.Title,
@@ -220,7 +243,7 @@ namespace Assignment1
                     }
                     );
        
-                foreach (var screening in join)
+                foreach (var screening in join) //join is the new "joined table" that we made above
                 {
                     //var movieScreening = MoviesContext.Movies.Where(m => m.ID == screening.MovieID + 1).First();
                     Console.WriteLine($"- {screening.ScreeningDate:g}: {screening.MovieTitle} ({screening.Seats})");
@@ -234,10 +257,10 @@ namespace Assignment1
 
         public static void AddScreening()
         {
-            string[] movies = MovieListToArry();
-            int selected = ShowMenu("Add Screening", movies);
-            //find movie selected in database
-            //var movieSelected = MoviesContext.Movies.Where(m => m.ID == selected + 1).First();
+            var movies2D = MovieListTo2DArray();
+            var selectedMovie = FindSelectedMovieInDb("Which movie would you like to screen?", movies2D);
+
+            int movieID = selectedMovie.ID;
 
             //choose day
             DateTime selectedDate = ReadFutureDate("Day");
@@ -253,7 +276,7 @@ namespace Assignment1
             {
                 DateTime = selectedDate,
                 Seats = noOfSeats,
-                MovieID = selected
+                MovieID = movieID
             };
 
             MoviesContext.Add(screening);

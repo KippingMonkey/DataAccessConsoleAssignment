@@ -17,7 +17,8 @@ namespace Assignment1
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            options.UseSqlServer(@"Data Source=LAPTOP-9gj2bhv1;Initial Catalog=DataAccessConsoleAssignment;Integrated Security=SSPI");
+            options.EnableSensitiveDataLogging() //Added to get more information about exceptions regarding context, had issues with tracking
+                .UseSqlServer(@"Data Source=LAPTOP-9gj2bhv1;Initial Catalog=DataAccessConsoleAssignment;Integrated Security=SSPI");
         }
     }
     public class Movies
@@ -36,7 +37,7 @@ namespace Assignment1
 
         public int MovieID { get; set; }
         [ForeignKey("MovieID")]
-        public Movies MovieClass { get; set; }
+        public Movies MovieClass { get; set; } //have many similar names so i called this something a bit different
 
         public Int16 Seats { get; set; }
     }
@@ -45,23 +46,26 @@ namespace Assignment1
     public class Program
     {
         private static MoviesContext MoviesContext;
+        private static List<string> BookedScreenings = new List<string>(); //list used to make array for Showmenu
+        private static List<DateTime> ScreeningDates = new List<DateTime>(); //list used to find dates
+
         public static void Main()
         {
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 
-            // Method not used as we are only turning in the cs-file. Still wanted to include it.
-           //MoveFileSampleMoviesToTemp();
+            // Method below not used as we are only turning in the cs-file. I kept it just the same
+           //MoveFileSampleMoviesToTemp()
 
             using (MoviesContext = new MoviesContext())
             {
-                //if (MoviesContext.Database.EnsureCreated()) //Checks if database exists. If not it creates it. NOTE. Does not use migrations
-                //{
-                //    Console.WriteLine("Database exists");
-                //}
-                //else if (!MoviesContext.Database.EnsureCreated())
-                //{
-                //    Console.WriteLine("No such database exists. Please hold while I created it.");
-                //};
+                if (MoviesContext.Database.EnsureCreated()) //Checks if database exists. If not it creates it. NOTE. Does not use migrations
+                {
+                    Console.WriteLine("No such database exists. Please hold while I created it.");
+                }
+                else if (!MoviesContext.Database.EnsureCreated())
+                {
+                    Console.WriteLine("The database exists, you are good to go.");
+                };
 
                 bool running = true;
                 while (running)
@@ -154,7 +158,7 @@ namespace Assignment1
             }
             // list all the movies with showmenu
             int selected = ShowMenu(prompt, movies);
-            //find movie selected in database
+            //find movie selected in database using matching titles
             var selectedMovie = MoviesContext.Movies.Where(m => m.Title == movies2D[0, selected]).First();
 
             return selectedMovie;
@@ -202,32 +206,56 @@ namespace Assignment1
 
         public static void LoadMoviesFromCSVFile()
         {
-            //Not possible due to foreignkey. Need to remove constraints, then truncate, then recreate constraints (i.e. FK)
-            //MoviesContext.Database.ExecuteSqlRaw("TRUNCATE TABLE Screenings");
-            //MoviesContext.Database.ExecuteSqlRaw("TRUNCATE TABLE Movies"); 
+            Console.WriteLine("Please note this will delete all current movies and clear all screenings");
+            int answer = ShowMenu("Do you still wish to continue?", new [] { "Yes", "No" });
 
-
-            string[] linesCSV = File.ReadAllLines(@"C:\Users\nelsc\source\repos\DataAccessConsoleAssignment\SampleMovies.csv").ToArray();
-            foreach (string line in linesCSV)
+            if (answer == 0)
             {
-                string[] values = line.Split(',').Select(v => v.Trim()).ToArray();
+                //Not possible due to foreignkey. Need to remove constraints, then truncate, then recreate constraints (i.e. FK)
+                //This would be the best way of clearing a table from what I've read but I have chosen another path due to the small size of this database.
+                //MoviesContext.Database.ExecuteSqlRaw("TRUNCATE TABLE Screenings");
+                //MoviesContext.Database.ExecuteSqlRaw("TRUNCATE TABLE Movies"); 
 
-                string title = values[0];
-                DateTime releaseDate = DateTime.Parse(values[1]);
+                //MoviesContext.Database.ExecuteSqlRaw("DELETE FROM Screenings"); //Another alternative solution but this requires a re-seed of id's
+                //MoviesContext.Database.ExecuteSqlRaw("DELETE FROM Movies");()
 
-                Movies movie = new Movies
+                MoviesContext.Database.EnsureDeleted(); //I finally went with this, delete the entire database.
+                
+                MoviesContext.Database.EnsureCreated(); // recreate it
+
+                MoviesContext.ChangeTracker.Clear(); //clear all entity tracking to make sure it does not try to track more than one       
+
+
+                string sampleMoviesPath = ReadString("Please enter path to the desired csv file: ");
+
+                string[] linesCSV = File.ReadAllLines(@$"{sampleMoviesPath}").ToArray();
+                foreach (string line in linesCSV)
                 {
-                    Title = title,
-                    ReleaseDate = releaseDate
-                };
+                    string[] values = line.Split(',').Select(v => v.Trim()).ToArray();
 
-                MoviesContext.Add(movie);
-                MoviesContext.SaveChanges();
+                    string title = values[0];
+                    DateTime releaseDate = DateTime.Parse(values[1]);
+
+                    Movies movie = new Movies
+                    {
+                        Title = title,
+                        ReleaseDate = releaseDate
+                    };
+
+                    
+                    MoviesContext.Add(movie);
+                    MoviesContext.SaveChanges();
+                }
             }
+            else { }
+            
         }
 
         public static void ListScreenings()
         {
+            BookedScreenings.Clear(); //clear lists to avoid repeated values 
+            ScreeningDates.Clear();
+
             if (MoviesContext.Screenings.Count() != 0)
             {
                 var join = MoviesContext.Movies //table with many (movies can have many screening)
@@ -243,10 +271,12 @@ namespace Assignment1
                     }
                     );
        
-                foreach (var screening in join) //join is the new "joined table" that we made above
+                foreach (var screening in join.AsNoTracking()) //join is the new "joined table" that we made above
                 {
                     //var movieScreening = MoviesContext.Movies.Where(m => m.ID == screening.MovieID + 1).First();
-                    Console.WriteLine($"- {screening.ScreeningDate:g}: {screening.MovieTitle} ({screening.Seats})");
+                    Console.WriteLine($"{screening.ScreeningDate:g}: {screening.MovieTitle} ({screening.Seats} seats)");
+                    BookedScreenings.Add($"{screening.ScreeningDate:g}: {screening.MovieTitle} ({screening.Seats} seats)");
+                    ScreeningDates.Add(screening.ScreeningDate);
                 }
             }
             else
@@ -268,7 +298,8 @@ namespace Assignment1
             string timestring = ReadString("Time (HH:MM): ");
             TimeSpan time = TimeSpan.Parse(timestring);
             // add chosen time to chosen day
-            selectedDate.Add(time);
+           selectedDate = selectedDate.Add(time);
+
 
             Int16 noOfSeats = Convert.ToInt16(ReadInt("Seats: "));
 
@@ -282,10 +313,23 @@ namespace Assignment1
             MoviesContext.Add(screening);
             MoviesContext.SaveChanges();
 
+            Console.Clear();
+            Console.WriteLine($"{selectedMovie.Title} on {selectedDate} ({noOfSeats} seats) has been added.");
+
         }
 
         public static void DeleteScreening()
         {
+            ListScreenings(); //fill the BookedScreenings list if the list option has not been run previously
+            Console.Clear(); //clear to hide remove list so it is never shown to user.
+            //instead they see below list with ShowMenu
+            int selectedScreening = ShowMenu("Which screening would you like to delete?", BookedScreenings.ToArray());
+
+            var screeningToDelete = MoviesContext.Screenings.Where(s => s.DateTime == ScreeningDates[selectedScreening]).First();
+
+
+            MoviesContext.Remove(screeningToDelete);
+            MoviesContext.SaveChanges();
         }
     }
 

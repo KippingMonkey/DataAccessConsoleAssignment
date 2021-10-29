@@ -36,7 +36,7 @@ namespace Assignment1
 
         public int MovieID { get; set; }
         [ForeignKey("MovieID")]
-        public Movies Movies { get; set; }
+        public Movies MovieClass { get; set; }
 
         public Int16 Seats { get; set; }
     }
@@ -121,6 +121,19 @@ namespace Assignment1
             }
         }
 
+        public static string[] MovieListToArry()
+        {
+            var movies = new string[MoviesContext.Movies.Count()];
+            int counter = 0;
+
+            foreach (var movie in MoviesContext.Movies.AsNoTracking())
+            {
+                movies[counter] = $"{movie.Title} ({movie.ReleaseDate:yyyy})";
+                counter++;
+            }
+            return movies;
+        }
+
         public static void ListMovies()
         {
             if (MoviesContext.Movies.Count() != 0)
@@ -154,14 +167,7 @@ namespace Assignment1
 
         public static void DeleteMovie()
         {
-            var movies = new string[MoviesContext.Movies.Count()];
-            int counter = 0;
-
-            foreach (var movie in MoviesContext.Movies)
-            {
-                movies[counter] = $"{movie.Title} ({movie.ReleaseDate:yyyy})";
-                counter++;
-            }
+            string[] movies = MovieListToArry();
             // list all the movies with showmenu
             int selected = ShowMenu("Which movie would you like to delete?", movies);
             //find movie selected in database
@@ -201,9 +207,23 @@ namespace Assignment1
         {
             if (MoviesContext.Screenings.Count() != 0)
             {
-                foreach (var screening in MoviesContext.Screenings)
+                var join = MoviesContext.Movies
+                    .Join(
+                    MoviesContext.Screenings,
+                    movie => movie.ID,
+                    screening => screening.MovieClass.ID,
+                    (movie, screening) => new
+                    {
+                        ScreeningDate = screening.DateTime,
+                        MovieTitle = movie.Title,
+                        Seats = screening.Seats
+                    }
+                    );
+       
+                foreach (var screening in join)
                 {
-                    Console.WriteLine($"- {screening.DateTime:g}: {screening.MovieID} ({screening.Seats})");
+                    //var movieScreening = MoviesContext.Movies.Where(m => m.ID == screening.MovieID + 1).First();
+                    Console.WriteLine($"- {screening.ScreeningDate:g}: {screening.MovieTitle} ({screening.Seats})");
                 }
             }
             else
@@ -214,6 +234,31 @@ namespace Assignment1
 
         public static void AddScreening()
         {
+            string[] movies = MovieListToArry();
+            int selected = ShowMenu("Add Screening", movies);
+            //find movie selected in database
+            //var movieSelected = MoviesContext.Movies.Where(m => m.ID == selected + 1).First();
+
+            //choose day
+            DateTime selectedDate = ReadFutureDate("Day");
+            //choose time and parse to TimeSpan
+            string timestring = ReadString("Time (HH:MM): ");
+            TimeSpan time = TimeSpan.Parse(timestring);
+            // add chosen time to chosen day
+            selectedDate.Add(time);
+
+            Int16 noOfSeats = Convert.ToInt16(ReadInt("Seats: "));
+
+            Screenings screening = new Screenings
+            {
+                DateTime = selectedDate,
+                Seats = noOfSeats,
+                MovieID = selected
+            };
+
+            MoviesContext.Add(screening);
+            MoviesContext.SaveChanges();
+
         }
 
         public static void DeleteScreening()

@@ -219,6 +219,9 @@ namespace Assignment1
                 //MoviesContext.Database.ExecuteSqlRaw("DELETE FROM Screenings"); //Another alternative solution but this requires a re-seed of id's
                 //MoviesContext.Database.ExecuteSqlRaw("DELETE FROM Movies");()
 
+                //CORRECT SOLUTION: MoviesContext.Movies.RemoveRange(MoviesContext.Movies);
+                // This removes all rows from the table Movies. DOH!
+
                 MoviesContext.Database.EnsureDeleted(); //I finally went with this, delete the entire database.
                 
                 MoviesContext.Database.EnsureCreated(); // recreate it

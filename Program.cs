@@ -93,7 +93,7 @@ namespace Assignment1
                 foreach (var movie in moviesContext.Movies.AsNoTracking())
                 {
                     Console.WriteLine($"- {movie.Title} ({movie.ReleaseDate:yyyy})");
-                    allMovies.Add($"{movie.Title} ({movie.ReleaseDate:yyyy})", movie.ID);
+                    allMovies.Add($"{movie.Title} ({movie.ReleaseDate:yyyy})", movie.ID); //adds string and ID to dictionary
                 } 
             }
             else
@@ -125,7 +125,7 @@ namespace Assignment1
 
             if (allMovies.Count == 0)
             {
-                Console.WriteLine("There are no movies to delete.");
+                Console.WriteLine("I Am Sorry, There are no movies to delete.");
                 return;
             }
 
@@ -134,13 +134,19 @@ namespace Assignment1
             moviesContext.Remove(movie);
             moviesContext.SaveChanges();
         }
+        /// <summary>
+        /// Finds a movie entity via choice made in ShowMenu()
+        /// </summary>
+        /// <param name="prompt"></param>
+        /// <param name="dict"></param>
+        /// <returns></returns>
         public static Movies GetMovieFromShowMenu(string prompt, Dictionary<string, int> dict)
         {
-            int choice = ShowMenu(prompt, dict.Keys.ToArray());
+            int choice = ShowMenu(prompt, dict.Keys.ToArray()); //get the array from the dictionary keys
 
-            int entityId = dict.Values.ElementAt(choice);
+            int entityId = dict.Values.ElementAt(choice); //get the id from values in dictionary
 
-            var movie = moviesContext.Movies.First(m => m.ID == entityId);
+            var movie = moviesContext.Movies.First(m => m.ID == entityId); //matches id with database id
 
             return movie;
         }
@@ -172,8 +178,9 @@ namespace Assignment1
                     };
                     
                     moviesContext.Add(movie);
-                    moviesContext.SaveChanges();
                 }
+
+                moviesContext.SaveChanges();
             }
             else { }
         }
@@ -228,6 +235,12 @@ namespace Assignment1
 
         public static void DeleteScreening()
         {
+            if (moviesContext.Screenings.Count() == 0)
+            {
+                Console.WriteLine("I Am Sorry, There Are No Screenings To Delete,");
+                return;
+            }
+
             ListScreenings();
             Console.Clear();
 
@@ -237,6 +250,7 @@ namespace Assignment1
                 return;
             }
 
+            //same solution as with movies but using the screening table instead
             int choice = ShowMenu("Which Screening Would You Like To Delete?", allScreenings.Keys.ToArray());
 
             int screeningId = allScreenings.Values.ElementAt(choice);

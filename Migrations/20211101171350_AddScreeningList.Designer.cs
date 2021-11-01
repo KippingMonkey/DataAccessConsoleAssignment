@@ -10,8 +10,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DataAccessConsoleAssignment.Migrations
 {
     [DbContext(typeof(MoviesContext))]
-    [Migration("20211027090029_NewTryForeignKey")]
-    partial class NewTryForeignKey
+    [Migration("20211101171350_AddScreeningList")]
+    partial class AddScreeningList
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -32,6 +32,7 @@ namespace DataAccessConsoleAssignment.Migrations
                         .HasColumnType("Date");
 
                     b.Property<string>("Title")
+                        .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
@@ -50,10 +51,7 @@ namespace DataAccessConsoleAssignment.Migrations
                     b.Property<DateTime>("DateTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("MovieID")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("MoviesID")
+                    b.Property<int>("MoviesID")
                         .HasColumnType("int");
 
                     b.Property<short>("Seats")
@@ -69,10 +67,17 @@ namespace DataAccessConsoleAssignment.Migrations
             modelBuilder.Entity("Assignment1.Screenings", b =>
                 {
                     b.HasOne("Assignment1.Movies", "Movies")
-                        .WithMany()
-                        .HasForeignKey("MoviesID");
+                        .WithMany("Screenings")
+                        .HasForeignKey("MoviesID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Movies");
+                });
+
+            modelBuilder.Entity("Assignment1.Movies", b =>
+                {
+                    b.Navigation("Screenings");
                 });
 #pragma warning restore 612, 618
         }

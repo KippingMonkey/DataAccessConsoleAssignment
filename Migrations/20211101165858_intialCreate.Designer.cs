@@ -10,8 +10,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DataAccessConsoleAssignment.Migrations
 {
     [DbContext(typeof(MoviesContext))]
-    [Migration("20211027081232_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20211101165858_intialCreate")]
+    partial class intialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -29,9 +29,10 @@ namespace DataAccessConsoleAssignment.Migrations
                         .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
                     b.Property<DateTime>("ReleaseDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("Date");
 
                     b.Property<string>("Title")
+                        .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
@@ -50,7 +51,7 @@ namespace DataAccessConsoleAssignment.Migrations
                     b.Property<DateTime>("DateTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("MovieID")
+                    b.Property<int?>("MoviesID")
                         .HasColumnType("int");
 
                     b.Property<short>("Seats")
@@ -58,7 +59,18 @@ namespace DataAccessConsoleAssignment.Migrations
 
                     b.HasKey("ID");
 
+                    b.HasIndex("MoviesID");
+
                     b.ToTable("Screenings");
+                });
+
+            modelBuilder.Entity("Assignment1.Screenings", b =>
+                {
+                    b.HasOne("Assignment1.Movies", "Movies")
+                        .WithMany()
+                        .HasForeignKey("MoviesID");
+
+                    b.Navigation("Movies");
                 });
 #pragma warning restore 612, 618
         }

@@ -2,7 +2,7 @@
 
 namespace DataAccessConsoleAssignment.Migrations
 {
-    public partial class UpdateForeignKey : Migration
+    public partial class AddScreeningList : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -10,23 +10,20 @@ namespace DataAccessConsoleAssignment.Migrations
                 name: "FK_Screenings_Movies_MoviesID",
                 table: "Screenings");
 
-            migrationBuilder.DropIndex(
-                name: "IX_Screenings_MoviesID",
-                table: "Screenings");
-
-            migrationBuilder.DropColumn(
+            migrationBuilder.AlterColumn<int>(
                 name: "MoviesID",
-                table: "Screenings");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Screenings_MovieID",
                 table: "Screenings",
-                column: "MovieID");
+                type: "int",
+                nullable: false,
+                defaultValue: 0,
+                oldClrType: typeof(int),
+                oldType: "int",
+                oldNullable: true);
 
             migrationBuilder.AddForeignKey(
-                name: "FK_Screenings_Movies_MovieID",
+                name: "FK_Screenings_Movies_MoviesID",
                 table: "Screenings",
-                column: "MovieID",
+                column: "MoviesID",
                 principalTable: "Movies",
                 principalColumn: "ID",
                 onDelete: ReferentialAction.Cascade);
@@ -35,23 +32,16 @@ namespace DataAccessConsoleAssignment.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
-                name: "FK_Screenings_Movies_MovieID",
+                name: "FK_Screenings_Movies_MoviesID",
                 table: "Screenings");
 
-            migrationBuilder.DropIndex(
-                name: "IX_Screenings_MovieID",
-                table: "Screenings");
-
-            migrationBuilder.AddColumn<int>(
+            migrationBuilder.AlterColumn<int>(
                 name: "MoviesID",
                 table: "Screenings",
                 type: "int",
-                nullable: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Screenings_MoviesID",
-                table: "Screenings",
-                column: "MoviesID");
+                nullable: true,
+                oldClrType: typeof(int),
+                oldType: "int");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Screenings_Movies_MoviesID",

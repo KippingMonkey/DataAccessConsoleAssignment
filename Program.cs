@@ -17,8 +17,7 @@ namespace Assignment1
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            options.EnableSensitiveDataLogging() //Added to get more information about exceptions regarding context, had issues with tracking
-                .UseSqlServer(@"Data Source=LAPTOP-9gj2bhv1;Initial Catalog=DataAccessConsoleAssignment;Integrated Security=SSPI");
+            options.UseSqlServer(@"Data Source=LAPTOP-9gj2bhv1;Initial Catalog=DataAccessConsoleAssignment;Integrated Security=SSPI");
         }
     }
     public class Movies
@@ -29,15 +28,14 @@ namespace Assignment1
         [DataType(DataType.Date)]
         [Column(TypeName ="Date")]
         public DateTime ReleaseDate { get; set; }
+        public List<Screenings> Screenings { get; set; }
     }
     public class Screenings
     {
         public int ID { get; set; }
         public DateTime DateTime { get; set; }
-
-        public int MovieID { get; set; }
-        [ForeignKey("MovieID")]
-        public Movies MovieClass { get; set; } //have many similar names so i called this something a bit different
+        [Required]   
+        public Movies Movies { get; set; } 
 
         public Int16 Seats { get; set; }
     }
@@ -45,32 +43,21 @@ namespace Assignment1
     
     public class Program
     {
-        private static MoviesContext MoviesContext;
-        private static List<string> BookedScreenings = new List<string>(); //list used to make array for Showmenu
-        private static List<DateTime> ScreeningDates = new List<DateTime>(); //list used to find dates
-
+        private static MoviesContext moviesContext;
+        private static Dictionary<string, int> allMovies = new Dictionary<string, int>();
+        private static Dictionary<string, int> allScreenings = new Dictionary<string, int>();
+  
         public static void Main()
         {
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+          
 
-            // Method below not used as we are only turning in the cs-file. I kept it just the same
-           //MoveFileSampleMoviesToTemp()
-
-            using (MoviesContext = new MoviesContext())
+            using (moviesContext = new MoviesContext())
             {
-                if (MoviesContext.Database.EnsureCreated()) //Checks if database exists. If not it creates it. NOTE. Does not use migrations
-                {
-                    Console.WriteLine("No such database exists. Please hold while I created it.");
-                }
-                else if (!MoviesContext.Database.EnsureCreated())
-                {
-                    Console.WriteLine("The database exists, you are good to go.");
-                };
-
                 bool running = true;
                 while (running)
                 {
-                    int selected = Utils.ShowMenu("What do you want to do?", new[] {
+                    int selected = ShowMenu("What do you want to do?", new[] {
                     "List Movies",
                     "Add Movie",
                     "Delete Movie",
@@ -95,82 +82,18 @@ namespace Assignment1
                 } 
             }
         }
-        /// <summary>
-        /// Method for moving "SampleMovies" to local harddrive when sending complete solution
-        /// </summary>
-        private static void MoveFileSampleMoviesToTemp()
-        {
-            string projectPath = @"C:\Users\nelsc\source\repos\DataAccessConsoleAssignment\SampleMovies.csv";
-            string tempPath = @"C:\Windows\Temp\SampleMovies.csv";
-            try
-            {
-                if (!File.Exists(projectPath)) //checks if the file to move is in the project
-                {
-                    Console.WriteLine("I am sorry, there has been an error. The file SampleMovies does not exist in your project.");
-                }
-                else
-                { 
-                    // Ensure that the target does not exist. If it does, delete it.
-                    if (File.Exists(tempPath))
-                    {
-                        File.Delete(tempPath);
-                    }
-                    // Move the file.
-                    File.Move(projectPath, tempPath);
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("The process failed: {0}", e.ToString());
-            }
-        }
-        /// <summary>
-        /// Makde a 2D array with movie title and movie release date
-        /// </summary>
-        /// <returns></returns>
-        public static string[,] MovieListTo2DArray()
-        {
-            var movies = new string[2,MoviesContext.Movies.Count()];
-            int counter = 0;
-
-            foreach (var movie in MoviesContext.Movies.AsNoTracking())
-            {
-                movies[0,counter] = $"{movie.Title}";
-                movies[1, counter] = $" ({ movie.ReleaseDate:yyyy})";
-                counter++;
-            }
-            return movies;
-        }
-        /// <summary>
-        /// Finds the selected movie in the database by looking for a matching title
-        /// </summary>
-        /// <param name="prompt"></param>
-        /// <param name="movies2D"></param>
-        /// <returns></returns>
-        public static Movies FindSelectedMovieInDb(string prompt, string[,] movies2D)
-        {
-            movies2D = MovieListTo2DArray();
-
-            var movies = new string[movies2D.Length/2];
-            for (int i = 0; i < movies2D.Length/2; i++)
-            {
-                movies[i] = movies2D[0, i] + movies2D[1, i];
-            }
-            // list all the movies with showmenu
-            int selected = ShowMenu(prompt, movies);
-            //find movie selected in database using matching titles
-            var selectedMovie = MoviesContext.Movies.Where(m => m.Title == movies2D[0, selected]).First();
-
-            return selectedMovie;
-        }
+     
 
         public static void ListMovies()
         {
-            if (MoviesContext.Movies.Count() != 0)
+            allMovies.Clear();
+
+            if (moviesContext.Movies.Count() != 0)
             {
-                foreach (var movie in MoviesContext.Movies.AsNoTracking())
+                foreach (var movie in moviesContext.Movies.AsNoTracking())
                 {
                     Console.WriteLine($"- {movie.Title} ({movie.ReleaseDate:yyyy})");
+                    allMovies.Add($"{movie.Title} ({movie.ReleaseDate:yyyy})", movie.ID);
                 } 
             }
             else
@@ -190,18 +113,36 @@ namespace Assignment1
                 ReleaseDate = releaseDate
             };
 
-            MoviesContext.Add(movie);
-            MoviesContext.SaveChanges();
+            moviesContext.Add(movie);
+            moviesContext.SaveChanges();
 
         }
 
         public static void DeleteMovie()
         {
-            var movies2D = MovieListTo2DArray();
-            var selectedMovie = FindSelectedMovieInDb("Which movie would you like to delete?", movies2D);
-            //delete movie from database
-            MoviesContext.Movies.Remove(selectedMovie);
-            MoviesContext.SaveChanges();
+            ListMovies();
+            Console.Clear();
+
+            if (allMovies.Count == 0)
+            {
+                Console.WriteLine("There are no movies to delete.");
+                return;
+            }
+
+            var movie = GetMovieFromShowMenu("Which Movie Would You Like To Delete?", allMovies);
+
+            moviesContext.Remove(movie);
+            moviesContext.SaveChanges();
+        }
+        public static Movies GetMovieFromShowMenu(string prompt, Dictionary<string, int> dict)
+        {
+            int choice = ShowMenu(prompt, dict.Keys.ToArray());
+
+            int entityId = dict.Values.ElementAt(choice);
+
+            var movie = moviesContext.Movies.First(m => m.ID == entityId);
+
+            return movie;
         }
 
         public static void LoadMoviesFromCSVFile()
@@ -211,27 +152,12 @@ namespace Assignment1
 
             if (answer == 0)
             {
-                //Not possible due to foreignkey. Need to remove constraints, then truncate, then recreate constraints (i.e. FK)
-                //This would be the best way of clearing a table from what I've read but I have chosen another path due to the small size of this database.
-                //MoviesContext.Database.ExecuteSqlRaw("TRUNCATE TABLE Screenings");
-                //MoviesContext.Database.ExecuteSqlRaw("TRUNCATE TABLE Movies"); 
-
-                //MoviesContext.Database.ExecuteSqlRaw("DELETE FROM Screenings"); //Another alternative solution but this requires a re-seed of id's
-                //MoviesContext.Database.ExecuteSqlRaw("DELETE FROM Movies");()
-
-                //CORRECT SOLUTION: MoviesContext.Movies.RemoveRange(MoviesContext.Movies);
-                // This removes all rows from the table Movies. DOH!
-
-                MoviesContext.Database.EnsureDeleted(); //I finally went with this, delete the entire database.
-                
-                MoviesContext.Database.EnsureCreated(); // recreate it
-
-                MoviesContext.ChangeTracker.Clear(); //clear all entity tracking to make sure it does not try to track more than one       
-
+                moviesContext.Movies.RemoveRange(moviesContext.Movies);
 
                 string sampleMoviesPath = ReadString("Please enter path to the desired csv file: ");
 
                 string[] linesCSV = File.ReadAllLines(@$"{sampleMoviesPath}").ToArray();
+
                 foreach (string line in linesCSV)
                 {
                     string[] values = line.Split(',').Select(v => v.Trim()).ToArray();
@@ -244,42 +170,24 @@ namespace Assignment1
                         Title = title,
                         ReleaseDate = releaseDate
                     };
-
                     
-                    MoviesContext.Add(movie);
-                    MoviesContext.SaveChanges();
+                    moviesContext.Add(movie);
+                    moviesContext.SaveChanges();
                 }
             }
             else { }
-            
         }
 
         public static void ListScreenings()
         {
-            BookedScreenings.Clear(); //clear lists to avoid repeated values 
-            ScreeningDates.Clear();
+            allScreenings.Clear();
 
-            if (MoviesContext.Screenings.Count() != 0)
+            if (moviesContext.Screenings.Count() != 0)
             {
-                var join = MoviesContext.Movies //table with many (movies can have many screening)
-                    .Join(
-                    MoviesContext.Screenings, //tabel with one (each screeing only has one movie)
-                    movie => movie.ID, //set movie to movie tabel ID
-                    screening => screening.MovieClass.ID, //use the movieclass property in screening to movie id (foreign key)
-                    (movie, screening) => new //make a new, joined objekt, using properties from both classes
-                    {
-                        ScreeningDate = screening.DateTime,
-                        MovieTitle = movie.Title,
-                        Seats = screening.Seats
-                    }
-                    );
-       
-                foreach (var screening in join.AsNoTracking()) //join is the new "joined table" that we made above
+                foreach (var screening in moviesContext.Screenings.Include(s => s.Movies).AsNoTracking())
                 {
-                    //var movieScreening = MoviesContext.Movies.Where(m => m.ID == screening.MovieID + 1).First();
-                    Console.WriteLine($"{screening.ScreeningDate:g}: {screening.MovieTitle} ({screening.Seats} seats)");
-                    BookedScreenings.Add($"{screening.ScreeningDate:g}: {screening.MovieTitle} ({screening.Seats} seats)");
-                    ScreeningDates.Add(screening.ScreeningDate);
+                    Console.WriteLine($"- {screening.DateTime}: {screening.Movies.Title} ({screening.Seats})");
+                    allScreenings.Add($"{screening.DateTime}: {screening.Movies.Title} ({screening.Seats})", screening.ID);
                 }
             }
             else
@@ -290,19 +198,16 @@ namespace Assignment1
 
         public static void AddScreening()
         {
-            var movies2D = MovieListTo2DArray();
-            var selectedMovie = FindSelectedMovieInDb("Which movie would you like to screen?", movies2D);
+            WriteHeading("Add Screening");
 
-            int movieID = selectedMovie.ID;
+            var movie = GetMovieFromShowMenu("Movie:", allMovies);
 
-            //choose day
             DateTime selectedDate = ReadFutureDate("Day");
-            //choose time and parse to TimeSpan
+          
             string timestring = ReadString("Time (HH:MM): ");
             TimeSpan time = TimeSpan.Parse(timestring);
-            // add chosen time to chosen day
-           selectedDate = selectedDate.Add(time);
-
+     
+            selectedDate = selectedDate.Add(time);
 
             Int16 noOfSeats = Convert.ToInt16(ReadInt("Seats: "));
 
@@ -310,34 +215,42 @@ namespace Assignment1
             {
                 DateTime = selectedDate,
                 Seats = noOfSeats,
-                MovieID = movieID
+                Movies = movie
             };
 
-            MoviesContext.Add(screening);
-            MoviesContext.SaveChanges();
+            moviesContext.Add(screening);
+            moviesContext.SaveChanges();
 
             Console.Clear();
-            Console.WriteLine($"{selectedMovie.Title} on {selectedDate} ({noOfSeats} seats) has been added.");
+            Console.WriteLine($"{movie.Title} on {selectedDate} ({noOfSeats} seats) has been added.");
 
         }
 
         public static void DeleteScreening()
         {
-            ListScreenings(); //fill the BookedScreenings list if the list option has not been run previously
-            Console.Clear(); //clear to hide remove list so it is never shown to user.
-            //instead they see below list with ShowMenu
-            int selectedScreening = ShowMenu("Which screening would you like to delete?", BookedScreenings.ToArray());
+            ListScreenings();
+            Console.Clear();
 
-            var screeningToDelete = MoviesContext.Screenings.Where(s => s.DateTime == ScreeningDates[selectedScreening]).First();
+            if (allScreenings.Count == 0)
+            {
+                Console.WriteLine("There are no screenings to delete.");
+                return;
+            }
 
+            int choice = ShowMenu("Which Screening Would You Like To Delete?", allScreenings.Keys.ToArray());
 
-            MoviesContext.Remove(screeningToDelete);
-            MoviesContext.SaveChanges();
+            int screeningId = allScreenings.Values.ElementAt(choice);
+
+            var screening = moviesContext.Screenings.First(s => s.ID == screeningId);
+
+            moviesContext.Remove(screening);
+            moviesContext.SaveChanges();
         }
     }
 
     public static class Utils
     {
+       
         public static string ReadString(string prompt)
         {
             Console.Write(prompt + " ");

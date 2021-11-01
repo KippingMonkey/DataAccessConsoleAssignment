@@ -49,7 +49,7 @@ namespace DataAccessConsoleAssignment.Migrations
                     b.Property<DateTime>("DateTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("MovieID")
+                    b.Property<int>("MoviesID")
                         .HasColumnType("int");
 
                     b.Property<short>("Seats")
@@ -57,7 +57,7 @@ namespace DataAccessConsoleAssignment.Migrations
 
                     b.HasKey("ID");
 
-                    b.HasIndex("MovieID");
+                    b.HasIndex("MoviesID");
 
                     b.ToTable("Screenings");
                 });
@@ -65,12 +65,17 @@ namespace DataAccessConsoleAssignment.Migrations
             modelBuilder.Entity("Assignment1.Screenings", b =>
                 {
                     b.HasOne("Assignment1.Movies", "Movies")
-                        .WithMany()
-                        .HasForeignKey("MovieID")
+                        .WithMany("Screenings")
+                        .HasForeignKey("MoviesID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Movies");
+                });
+
+            modelBuilder.Entity("Assignment1.Movies", b =>
+                {
+                    b.Navigation("Screenings");
                 });
 #pragma warning restore 612, 618
         }

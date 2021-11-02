@@ -54,6 +54,11 @@ namespace Assignment1
 
             using (moviesContext = new MoviesContext())
             {
+                ListMovies();
+                Console.Clear();
+                ListScreenings();
+                Console.Clear();
+
                 bool running = true;
                 while (running)
                 {
@@ -90,7 +95,7 @@ namespace Assignment1
 
             if (moviesContext.Movies.Count() != 0)
             {
-                foreach (var movie in moviesContext.Movies.AsNoTracking())
+                foreach (var movie in moviesContext.Movies.OrderBy(m => m.Title).AsNoTracking())
                 {
                     Console.WriteLine($"- {movie.Title} ({movie.ReleaseDate:yyyy})");
                     allMovies.Add($"{movie.Title} ({movie.ReleaseDate:yyyy})", movie.ID); //adds string and ID to dictionary
@@ -104,25 +109,38 @@ namespace Assignment1
 
         public static void AddMovie()
         {
-            string title = ReadString("Please enter the name of the movie: ");
-            DateTime releaseDate = ReadDate("Thank you. Now please enter date of release: ");
-
-            Movies movie = new Movies
+            while (true)
             {
-                Title = title,
-                ReleaseDate = releaseDate
-            };
+                string title = ReadString("Please enter the name of the movie: ");
+                DateTime releaseDate = ReadDate("Thank you. Now please enter date of release: ");
 
-            moviesContext.Add(movie);
-            moviesContext.SaveChanges();
+                Movies movie = new Movies
+                {
+                    Title = title,
+                    ReleaseDate = releaseDate
+                };
+                string key = $"{title} ({releaseDate:yyyy})";
+
+                if (allMovies.ContainsKey(key)) 
+                {
+                    Console.WriteLine("I am sorry, this movie already exists. Please try again.");
+                    Console.WriteLine("Press Any Key To Continue");
+                    Console.ReadKey();
+                }
+                else
+                {
+                    moviesContext.Add(movie);
+                    moviesContext.SaveChanges();
+                    break;
+                }
+
+                
+            }
 
         }
 
         public static void DeleteMovie()
         {
-            ListMovies();
-            Console.Clear();
-
             if (allMovies.Count == 0)
             {
                 Console.WriteLine("I Am Sorry, There are no movies to delete.");
@@ -191,7 +209,7 @@ namespace Assignment1
 
             if (moviesContext.Screenings.Count() != 0)
             {
-                foreach (var screening in moviesContext.Screenings.Include(s => s.Movies).AsNoTracking())
+                foreach (var screening in moviesContext.Screenings.OrderBy(s => s.DateTime).Include(s => s.Movies).AsNoTracking())
                 {
                     Console.WriteLine($"- {screening.DateTime}: {screening.Movies.Title} ({screening.Seats})");
                     allScreenings.Add($"{screening.DateTime}: {screening.Movies.Title} ({screening.Seats})", screening.ID);
@@ -205,32 +223,45 @@ namespace Assignment1
 
         public static void AddScreening()
         {
-            WriteHeading("Add Screening");
-
-            var movie = GetMovieFromShowMenu("Movie:", allMovies);
-
-            DateTime selectedDate = ReadFutureDate("Day");
-          
-            string timestring = ReadString("Time (HH:MM): ");
-            TimeSpan time = TimeSpan.Parse(timestring);
-     
-            selectedDate = selectedDate.Add(time);
-
-            Int16 noOfSeats = Convert.ToInt16(ReadInt("Seats: "));
-
-            Screenings screening = new Screenings
+            while (true)
             {
-                DateTime = selectedDate,
-                Seats = noOfSeats,
-                Movies = movie
-            };
+                WriteHeading("Add Screening");
 
-            moviesContext.Add(screening);
-            moviesContext.SaveChanges();
+                var movie = GetMovieFromShowMenu("Movie:", allMovies);
 
-            Console.Clear();
-            Console.WriteLine($"{movie.Title} on {selectedDate} ({noOfSeats} seats) has been added.");
+                DateTime selectedDate = ReadFutureDate("Day");
 
+                string timestring = ReadString("Time (HH:MM): ");
+                TimeSpan time = TimeSpan.Parse(timestring);
+
+                selectedDate = selectedDate.Add(time);
+
+                Int16 noOfSeats = Convert.ToInt16(ReadInt("Seats: "));
+
+                Screenings screening = new Screenings
+                {
+                    DateTime = selectedDate,
+                    Seats = noOfSeats,
+                    Movies = movie
+                };
+                string key = $"{selectedDate}: {movie.Title} ({noOfSeats})";
+
+                if (allScreenings.ContainsKey(key)) //Check if this screening already exists
+                {
+                    Console.WriteLine("I am sorry, this screening already exists. Please try again.");
+                    Console.WriteLine("Press Any Key To Continue");
+                    Console.ReadKey();
+                }
+                else
+                {
+                    moviesContext.Add(screening);
+                    moviesContext.SaveChanges();
+
+                    Console.Clear();
+                    Console.WriteLine($"{movie.Title} on {selectedDate} ({noOfSeats} seats) has been added.");
+                    break;
+                } 
+            }
         }
 
         public static void DeleteScreening()
@@ -240,9 +271,6 @@ namespace Assignment1
                 Console.WriteLine("I Am Sorry, There Are No Screenings To Delete,");
                 return;
             }
-
-            ListScreenings();
-            Console.Clear();
 
             if (allScreenings.Count == 0)
             {

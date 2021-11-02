@@ -54,6 +54,7 @@ namespace Assignment1
 
             using (moviesContext = new MoviesContext())
             {
+                // this is done to fill the dictionaries (if the database has content)
                 ListMovies();
                 Console.Clear();
                 ListScreenings();
@@ -98,7 +99,7 @@ namespace Assignment1
                 foreach (var movie in moviesContext.Movies.OrderBy(m => m.Title).AsNoTracking())
                 {
                     Console.WriteLine($"- {movie.Title} ({movie.ReleaseDate:yyyy})");
-                    allMovies.Add($"{movie.Title} ({movie.ReleaseDate:yyyy})", movie.ID); //adds string and ID to dictionary
+                    allMovies.Add($"{movie.Title} ({movie.ReleaseDate:yyyy})", movie.ID); //add string and ID to dictionary
                 } 
             }
             else
@@ -176,7 +177,7 @@ namespace Assignment1
 
             if (answer == 0)
             {
-                moviesContext.Movies.RemoveRange(moviesContext.Movies);
+                moviesContext.Movies.RemoveRange(moviesContext.Movies); //empties movies table and by cascade also screenings
 
                 string sampleMoviesPath = ReadString("Please enter path to the desired csv file: ");
 
@@ -213,6 +214,7 @@ namespace Assignment1
                 {
                     Console.WriteLine($"- {screening.DateTime}: {screening.Movies.Title} ({screening.Seats})");
                     allScreenings.Add($"{screening.DateTime}: {screening.Movies.Title} ({screening.Seats})", screening.ID);
+                    //add screening and id to dictionary
                 }
             }
             else

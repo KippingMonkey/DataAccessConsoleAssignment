@@ -44,8 +44,6 @@ namespace Assignment1
     public class Program
     {
         private static MoviesContext moviesContext;
-        private static Dictionary<string, int> allMovies = new Dictionary<string, int>();
-        private static Dictionary<string, int> allScreenings = new Dictionary<string, int>();
   
         public static void Main()
         {
@@ -92,14 +90,11 @@ namespace Assignment1
 
         public static void ListMovies()
         {
-            allMovies.Clear();
-
             if (moviesContext.Movies.Count() != 0)
             {
                 foreach (var movie in moviesContext.Movies.OrderBy(m => m.Title).AsNoTracking())
                 {
                     Console.WriteLine($"- {movie.Title} ({movie.ReleaseDate:yyyy})");
-                    allMovies.Add($"{movie.Title} ({movie.ReleaseDate:yyyy})", movie.ID); //add string and ID to dictionary
                 } 
             }
             else
@@ -120,9 +115,9 @@ namespace Assignment1
                     Title = title,
                     ReleaseDate = releaseDate
                 };
-                string key = $"{title} ({releaseDate:yyyy})";
 
-                if (allMovies.ContainsKey(key)) 
+                if (moviesContext.Movies.Where(m => m.Title == title).Any()
+                    && moviesContext.Movies.Where(m => m.ReleaseDate == releaseDate).Any()) 
                 {
                     Console.WriteLine("I am sorry, this movie already exists. Please try again.");
                     Console.WriteLine("Press Any Key To Continue");
@@ -134,40 +129,33 @@ namespace Assignment1
                     moviesContext.SaveChanges();
                     break;
                 }
-
-                
             }
 
         }
 
         public static void DeleteMovie()
         {
-            if (allMovies.Count == 0)
+            if (moviesContext.Movies.Count() == 0)
             {
                 Console.WriteLine("I Am Sorry, There are no movies to delete.");
                 return;
             }
 
-            var movie = GetMovieFromShowMenu("Which Movie Would You Like To Delete?", allMovies);
+            int choice = ShowMenu("Which Movie Would You Like To Delete?", MovieArrayForShowMenu() );
 
-            moviesContext.Remove(movie);
+            moviesContext.Remove(moviesContext.Movies.OrderBy( m => m.Title).Skip(choice).First());
             moviesContext.SaveChanges();
         }
-        /// <summary>
-        /// Finds a movie entity via choice made in ShowMenu()
-        /// </summary>
-        /// <param name="prompt"></param>
-        /// <param name="dict"></param>
-        /// <returns></returns>
-        public static Movies GetMovieFromShowMenu(string prompt, Dictionary<string, int> dict)
+       
+        public static string[] MovieArrayForShowMenu()
         {
-            int choice = ShowMenu(prompt, dict.Keys.ToArray()); //get the array from the dictionary keys
+            var movies = new List<string>();
+            foreach (var movie in moviesContext.Movies.OrderBy(m => m.Title).AsNoTracking())
+            {
+                movies.Add($"{movie.Title} ({movie.ReleaseDate:yyyy})");
+            }
 
-            int entityId = dict.Values.ElementAt(choice); //get the id from values in dictionary
-
-            var movie = moviesContext.Movies.First(m => m.ID == entityId); //matches id with database id
-
-            return movie;
+            return movies.ToArray();
         }
 
         public static void LoadMoviesFromCSVFile()
@@ -206,15 +194,11 @@ namespace Assignment1
 
         public static void ListScreenings()
         {
-            allScreenings.Clear();
-
             if (moviesContext.Screenings.Count() != 0)
-            {
+            { 
                 foreach (var screening in moviesContext.Screenings.OrderBy(s => s.DateTime).Include(s => s.Movies).AsNoTracking())
                 {
                     Console.WriteLine($"- {screening.DateTime}: {screening.Movies.Title} ({screening.Seats})");
-                    allScreenings.Add($"{screening.DateTime}: {screening.Movies.Title} ({screening.Seats})", screening.ID);
-                    //add screening and id to dictionary
                 }
             }
             else
@@ -229,7 +213,7 @@ namespace Assignment1
             {
                 WriteHeading("Add Screening");
 
-                var movie = GetMovieFromShowMenu("Movie:", allMovies);
+                int choice = ShowMenu("Movie:", MovieArrayForShowMenu());
 
                 DateTime selectedDate = ReadFutureDate("Day");
 
@@ -240,15 +224,17 @@ namespace Assignment1
 
                 Int16 noOfSeats = Convert.ToInt16(ReadInt("Seats: "));
 
+                var movie = moviesContext.Movies.OrderBy(m => m.Title).Skip(choice).First();
+
                 Screenings screening = new Screenings
                 {
                     DateTime = selectedDate,
                     Seats = noOfSeats,
                     Movies = movie
                 };
-                string key = $"{selectedDate}: {movie.Title} ({noOfSeats})";
 
-                if (allScreenings.ContainsKey(key)) //Check if this screening already exists
+                if (moviesContext.Screenings.Where(s => s.DateTime == selectedDate).Any()
+                   && moviesContext.Screenings.Where(s => s.Movies == movie ).Any())  //Check if this screening already exists
                 {
                     Console.WriteLine("I am sorry, this screening already exists. Please try again.");
                     Console.WriteLine("Press Any Key To Continue");
@@ -274,18 +260,16 @@ namespace Assignment1
                 return;
             }
 
-            if (allScreenings.Count == 0)
+            var screenings = new List<string>();
+
+            foreach (var s in moviesContext.Screenings.OrderBy(s => s.DateTime).Include(s => s.Movies).AsNoTracking())
             {
-                Console.WriteLine("There are no screenings to delete.");
-                return;
+                screenings.Add($"{s.DateTime}: {s.Movies.Title} ({s.Seats})");
             }
 
-            //same solution as with movies but using the screening table instead
-            int choice = ShowMenu("Which Screening Would You Like To Delete?", allScreenings.Keys.ToArray());
+            int choice = ShowMenu("Which Screening Would You Like To Delete?", screenings.ToArray());
 
-            int screeningId = allScreenings.Values.ElementAt(choice);
-
-            var screening = moviesContext.Screenings.First(s => s.ID == screeningId);
+            var screening = moviesContext.Screenings.AsNoTracking().OrderBy(s => s.DateTime).Skip(choice).First();
 
             moviesContext.Remove(screening);
             moviesContext.SaveChanges();

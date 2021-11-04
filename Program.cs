@@ -254,6 +254,8 @@ namespace Assignment1
 
         public static void DeleteScreening()
         {
+            moviesContext.ChangeTracker.Clear(); //add due to conflicting tracking that happened sometimes, not always.
+
             if (moviesContext.Screenings.Count() == 0)
             {
                 Console.WriteLine("I Am Sorry, There Are No Screenings To Delete,");
